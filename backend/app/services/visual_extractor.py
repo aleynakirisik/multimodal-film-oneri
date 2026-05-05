@@ -1,8 +1,3 @@
-"""
-VGG16 modeli ile film posterlerinden görsel özellik vektörü çıkarır.
-ImageNet ağırlıkları kullanılır, son sınıflandırma katmanı kaldırılır.
-Çıktı: 4096 boyutlu özellik vektörü
-"""
 import io
 import numpy as np
 import torch
@@ -12,73 +7,61 @@ import torchvision.transforms as transforms
 from PIL import Image
 from typing import Optional
 
-
-# GPU varsa kullan, yoksa CPU
+# 1. Donanım Ayarı: GPU (Ekran Kartı) varsa kullan, yoksa CPU kullan[cite: 2]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ImageNet için standart normalizasyon
+# 2. Resim Ön İşleme: VGG16 modelinin beklediği standart boyut ve renk ayarları
 TRANSFORM = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
+        mean=[0.485, 0.456, 0.406], # ImageNet standartları
         std=[0.229, 0.224, 0.225]
     )
 ])
 
-
 class VGG16FeatureExtractor:
     """
-    VGG16'nın classifier katmanının son FC'sinden önce
-    4096 boyutlu özellik vektörü çıkarır.
+    Tezinizde belirtilen önceden eğitilmiş VGG16 modelini kullanarak 
+    posterlerden 4096 boyutlu öznitelik vektörü çıkarır.
     """
 
     def __init__(self):
-        print(f"VGG16 yükleniyor... (device: {DEVICE})")
+        print(f"VGG16 yükleniyor... (Cihaz: {DEVICE})")
+        # ImageNet üzerinde eğitilmiş hazır ağırlıkları yükler[cite: 1]
         vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
 
-        # Son sınıflandırma katmanını kaldır (features + avgpool + classifier[:-1])
-        self.features = vgg.features
-        self.avgpool = vgg.avgpool
-        self.classifier = nn.Sequential(*list(vgg.classifier.children())[:-1])
-
-        self.model = nn.Sequential(
-            self.features,
-        )
+        # Modelin en sonundaki 1000'lik sınıflandırma katmanını devre dışı bırakıyoruz
         self._vgg = vgg
-
-        self._vgg.eval()
+        self._vgg.eval() # Modeli tahmin moduna al
         self._vgg.to(DEVICE)
 
-        # Hook ile 4096-d vektörü yakala
         self._feature_vector = None
         self._register_hook()
-
         print("VGG16 hazır.")
 
     def _register_hook(self):
-        """classifier[5] = ReLU(FC2) → 4096 boyutlu çıktı"""
+        """VGG16 içindeki 'fc2' (4096-d) katmanındaki veriyi yakalamak için hook kurar[cite: 2]."""
         def hook_fn(module, input, output):
             self._feature_vector = output.detach().cpu().numpy()
 
-        # classifier: Linear(25088,4096) -> ReLU -> Dropout -> Linear(4096,4096) -> ReLU[idx=4] -> Dropout -> Linear(4096,1000)
-        # idx 4 = ikinci ReLU, 4096 boyutlu
+        # 4. indis, sınıflandırmadan önceki son 4096'lık katmanı temsil eder[cite: 2]
         self._vgg.classifier[4].register_forward_hook(hook_fn)
 
     def extract(self, image_bytes: bytes) -> Optional[np.ndarray]:
-        """
-        Görüntü binary verisinden 4096 boyutlu vektör çıkarır.
-        Hata durumunda None döner.
-        """
+        """Binary (ham veri) resimden 4096 boyutlu vektör çıkarır[cite: 2]."""
         try:
+            # Resmi aç ve modele uygun hale getir
             img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
             tensor = TRANSFORM(img).unsqueeze(0).to(DEVICE)
 
+            # Modeli çalıştır (Gradyan hesaplamaya gerek yok, sadece okuma yapıyoruz)
             with torch.no_grad():
                 self._vgg(tensor)
 
             vec = self._feature_vector[0]
-            # L2 normalize
+            
+            # L2 Normalizasyonu: Vektörü standartlaştırarak benzerlik hesaplamasını iyileştirir[cite: 1]
             norm = np.linalg.norm(vec)
             if norm > 0:
                 vec = vec / norm
@@ -88,19 +71,12 @@ class VGG16FeatureExtractor:
             print(f"Görsel özellik çıkarma hatası: {e}")
             return None
 
-    def extract_from_path(self, image_path: str) -> Optional[np.ndarray]:
-        """Dosya yolundan özellik çıkarır."""
-        with open(image_path, "rb") as f:
-            return self.extract(f.read())
-
     def get_zero_vector(self) -> np.ndarray:
-        """Poster bulunamayan filmler için sıfır vektör."""
+        """Poster bulunamazsa sistemin çökmemesi için boş vektör döner[cite: 2]."""
         return np.zeros(4096, dtype=np.float32)
 
-
-# Singleton - bir kez yükle
+# 3. Singleton Yapısı: Modeli hafızaya sadece 1 kere yükler, performansı artırır[cite: 2]
 _extractor_instance = None
-
 
 def get_visual_extractor() -> VGG16FeatureExtractor:
     global _extractor_instance

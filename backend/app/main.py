@@ -4,6 +4,7 @@ Multimodal Film Öneri Sistemi - FastAPI Ana Uygulama
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
+from app.services.visual_extractor import get_visual_extractor
 
 app = FastAPI(
     title="Multimodal Film Öneri Sistemi",
@@ -19,6 +20,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Buraya Eklendi ---
+@app.on_event("startup")
+def startup_event():
+    """Uygulama başladığında ağır modelleri (VGG16) bir kez yükler."""
+    print("🚀 Sistem başlatılıyor...")
+    get_visual_extractor() # Modeli hafızaya yükle
+    print("✅ Modeller başarıyla yüklendi.")
 
 app.include_router(router, prefix="/api")
 
