@@ -1,4 +1,13 @@
-backend/venv/ 
+# Veri setlerini tamamen görmezden gel
+backend/data/
+ml-latest-small/
+ml-100k/
+
+# Python gereksizleri
 __pycache__/
-*.pyc
-*.db
+*.py[cod]
+
+# Colab çıktıları
+*.npy
+*.pkl
+*.zip
