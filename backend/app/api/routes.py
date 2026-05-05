@@ -15,7 +15,7 @@ class MovieResponse(BaseModel):
     movie_id: int
     title: str
     release_year: Optional[int]
-    genres: List[str]
+    genres: List[str] = []
     poster_url: Optional[str]
     avg_rating: Optional[float]
     vote_count: Optional[int] = None
@@ -77,16 +77,12 @@ def get_movie(movie_id: int):
     if not engine.is_ready:
         raise HTTPException(503, "Öneri motoru hazır değil.")
 
-    movies = engine.get_all_movies()
-    for m in movies:
-        if m["movie_id"] == movie_id:
-            # Overview ekle
-            meta = engine._get_meta(movie_id)
-            m["overview"] = meta.get("overview", "")
-            m["vote_count"] = meta.get("vote_count")
-            return m
+    movie = engine.get_movie_by_id(movie_id)
 
-    raise HTTPException(404, f"Film bulunamadı: {movie_id}")
+    if not movie:
+        raise HTTPException(404, f"Film bulunamadı: {movie_id}")
+
+    return movie
 
 
 @router.get("/recommend/similar/{movie_id}", response_model=List[RecommendationResponse])
