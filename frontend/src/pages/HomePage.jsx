@@ -5,6 +5,11 @@ import MovieCard from '../components/MovieCard'
 const ALL_GENRES = ['Action','Adventure','Animation','Comedy','Crime',
   'Drama','Fantasy','Horror','Musical','Mystery','Romance','Sci-Fi','Thriller','War']
 
+function fixTitle(title) {
+  if (!title) return title
+  return title.replace(/^(.*),\s*(The|A|An)\s*$/i, '$2 $1').trim()
+}
+
 export default function HomePage() {
   const [movies, setMovies] = useState([])
   const [loading, setLoading] = useState(true)
@@ -79,13 +84,13 @@ export default function HomePage() {
           <div style={s.detailBox}>
             <img
               src={detail?.poster_url || selected.poster_url || 'https://via.placeholder.com/120x180/1a1a24/7c6af7?text=?'}
-              alt={selected.title}
+              alt={fixTitle(selected.title)}
               style={s.detailPoster}
               onError={e => e.target.src = 'https://via.placeholder.com/120x180/1a1a24/7c6af7?text=?'}
             />
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={s.h3}>{selected.title} {selected.release_year && `(${selected.release_year})`}</h3>
+                <h3 style={s.h3}>{fixTitle(selected.title)} {selected.release_year && `(${selected.release_year})`}</h3>
                 <button style={s.closeBtn} onClick={() => { setSelected(null); setSimilar([]); setDetail(null) }}>✕ Kapat</button>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0' }}>

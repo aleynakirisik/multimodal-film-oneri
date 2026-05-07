@@ -1,8 +1,3 @@
-# Veri setlerini tamamen görmezden gel
-backend/data/
-ml-latest-small/
-ml-100k/
-
 # Python gereksizleri
 __pycache__/
 *.py[cod]
@@ -11,3 +6,9 @@ __pycache__/
 *.npy
 *.pkl
 *.zip
+
+backend/venv/
+frontend/node_modules/
+**/__pycache__/
+*.pyc
+.env

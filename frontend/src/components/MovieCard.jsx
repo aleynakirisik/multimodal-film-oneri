@@ -2,6 +2,11 @@ import React from 'react'
 
 const FALLBACK = 'https://via.placeholder.com/200x300/1a1a24/7c6af7?text=No+Poster'
 
+function fixTitle(title) {
+  if (!title) return title
+  return title.replace(/^(.*),\s*(The|A|An)\s*$/i, '$2 $1').trim()
+}
+
 const styles = {
   card: {
     background: 'var(--surface)',
@@ -53,12 +58,12 @@ export default function MovieCard({ movie, onClick, showScore = false }) {
     >
       <img
         src={imgErr || !movie.poster_url ? FALLBACK : movie.poster_url}
-        alt={movie.title}
+        alt={fixTitle(movie.title)}
         style={styles.poster}
         onError={() => setImgErr(true)}
       />
       <div style={styles.body}>
-        <div style={styles.title}>{movie.title}</div>
+        <div style={styles.title}>{fixTitle(movie.title)}</div>
         <div style={styles.meta}>
           {movie.release_year && <span>{movie.release_year}</span>}
           {movie.avg_rating && (

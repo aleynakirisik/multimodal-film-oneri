@@ -22,6 +22,5 @@ COMBINED_FEATURES_FILE = FEATURES_PATH / "combined_features.npy"
 MOVIE_IDS_FILE = FEATURES_PATH / "movie_ids.npy"
 MOVIES_META_FILE = FEATURES_PATH / "movies_meta.pkl"
 
-# Model ağırlıkları
-VISUAL_WEIGHT = 0.2   # Poster özelliklerinin ağırlığı
-TEXT_WEIGHT = 0.8     # Metin özelliklerinin ağırlığı
+VISUAL_WEIGHT = 0.2
+TEXT_WEIGHT   = 0.8
