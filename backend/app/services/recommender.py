@@ -20,10 +20,6 @@ from app.core.config import (
 )
 
 
-# ─────────────────────────────────────────────────────────────
-# Supabase yardımcı fonksiyonları (psycopg2 ile direkt SQL)
-# ─────────────────────────────────────────────────────────────
-
 def _get_db_conn():
     import psycopg2
     return psycopg2.connect(SUPABASE_DB_URL)
@@ -64,10 +60,6 @@ def _fetch_movie_by_id_supabase(movie_id: int) -> Optional[dict]:
         conn.close()
 
 
-# ─────────────────────────────────────────────────────────────
-# Pinecone yardımcı fonksiyonları
-# ─────────────────────────────────────────────────────────────
-
 def _get_pinecone_index():
     from pinecone import Pinecone
     pc = Pinecone(api_key=PINECONE_API_KEY)
@@ -94,10 +86,6 @@ def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = Non
     return matches[:top_k]
 
 
-# ─────────────────────────────────────────────────────────────
-# Metadata birleştirme yardımcısı
-# ─────────────────────────────────────────────────────────────
-
 def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     """
     Pinecone match + Supabase meta_df satırından birleşik sonuç üretir.
@@ -106,9 +94,8 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     """
     movie_id = int(match["id"])
     score    = float(match.get("score", 0.0))
-    pm       = match.get("metadata", {})  # Pinecone metadata
+    pm       = match.get("metadata", {}) 
 
-    # Supabase'den ek bilgi
     row = meta_df[meta_df["movie_id"] == movie_id]
     overview    = row.iloc[0]["overview"]    if not row.empty else None
     poster_path = row.iloc[0]["poster_path"] if not row.empty else None
@@ -118,14 +105,13 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
         if poster_path else None
     )
 
-    # Tür: Pinecone metadata'sından
     raw_genre = pm.get("genre", "")
     genres = [g.strip() for g in raw_genre.split(",") if g.strip()] if raw_genre else []
 
     return {
         "movie_id":        movie_id,
         "title":           pm.get("title", ""),
-        "release_year":    None,   # Pinecone metadata'sında yok; gerekirse eklenebilir
+        "release_year":    None,   
         "genres":          genres,
         "poster_url":      poster_url,
         "avg_rating":      None,
@@ -133,19 +119,11 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
         "similarity_score": score,
     }
 
-
-# ─────────────────────────────────────────────────────────────
-# Ana Öneri Motoru
-# ─────────────────────────────────────────────────────────────
-
 class RecommendationEngine:
 
     def __init__(self):
         self.is_ready    = False
-        self.meta_df     = pd.DataFrame()   # Supabase'den çekilen metadata
-        self.text_model  = None             # lazy-load
-
-    # ── Başlatma ─────────────────────────────────────────────
+        self.meta_df     = pd.DataFrame() 
 
     def load(self):
         """Supabase'den metadata çeker, Pinecone bağlantısını test eder."""
@@ -161,16 +139,6 @@ class RecommendationEngine:
 
         self.is_ready = True
 
-    # ── Sentence-BERT lazy loader ─────────────────────────────
-
-    def _get_text_model(self):
-        if self.text_model is None:
-            from sentence_transformers import SentenceTransformer
-            self.text_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-        return self.text_model
-
-    # ── 1. Filme Göre Benzer Öneri ────────────────────────────
-
     def recommend_by_movie(self, movie_id: int, top_n: int = 10) -> List[dict]:
         """
         Pinecone'da movie_id'ye ait vektörü fetch edip
@@ -178,7 +146,7 @@ class RecommendationEngine:
         """
         index = _get_pinecone_index()
 
-        # Önce kendi vektörünü al
+        # kendi vektörünü al
         fetch_result = index.fetch(ids=[str(movie_id)])
         vectors = fetch_result.get("vectors", {})
         if str(movie_id) not in vectors:
@@ -189,35 +157,6 @@ class RecommendationEngine:
 
         matches = _pinecone_query(query_vector, top_k=top_n, exclude_ids=[str(movie_id)])
         return [r for m in matches if (r := _build_result(m, self.meta_df))]
-
-    # ── 2. Metin Sorgusuna Göre Öneri ────────────────────────
-
-    def recommend_by_text(self, text: str, top_n: int = 10) -> List[dict]:
-        """
-        Metin → SBERT encode → Pinecone'ın text boyutuna yerleştir → sorgu.
-        combined vektör boyutu: 4096 (görsel) + 384 (text) = 4480
-        """
-        model = self._get_text_model()
-        text_vec = model.encode(text, normalize_embeddings=True).astype(np.float32)
-
-        # Pinecone'daki combined vektör boyutunu öğren
-        index = _get_pinecone_index()
-        stats = index.describe_index_stats()
-        total_dim = stats.get("dimension", 4480)
-        text_dim  = len(text_vec)       # 384
-        visual_dim = total_dim - text_dim  # 4096
-
-        query = np.zeros(total_dim, dtype=np.float32)
-        query[visual_dim:] = TEXT_WEIGHT * text_vec
-        query /= (np.linalg.norm(query) + 1e-10)
-
-        matches = _pinecone_query(query, top_k=top_n)
-        return [r for m in matches if (r := _build_result(m, self.meta_df))]
-
-    def recommend_by_text_query(self, query_text: str, top_n: int = 10) -> List[dict]:
-        return self.recommend_by_text(query_text, top_n)
-
-    # ── 3. Kullanıcı Geçmişine Göre Öneri ───────────────────
 
     def recommend_by_user_history(
         self,
@@ -256,8 +195,6 @@ class RecommendationEngine:
         )
         return [r for m in matches if (r := _build_result(m, self.meta_df))]
 
-    # ── Yardımcı: Tek film detayı ────────────────────────────
-
     def get_movie_by_id(self, movie_id: int) -> Optional[dict]:
         row = _fetch_movie_by_id_supabase(movie_id)
         if not row:
@@ -275,7 +212,6 @@ class RecommendationEngine:
             "overview":     (row.get("overview") or "")[:300],
         }
 
-    # ── Yardımcı: Tüm filmler (Supabase'den) ────────────────
 
     def get_all_movies(self) -> List[dict]:
         if not self.is_ready or self.meta_df.empty:
@@ -293,8 +229,6 @@ class RecommendationEngine:
             })
         return result
 
-
-# ── Singleton ────────────────────────────────────────────────
 
 _engine_instance = None
 

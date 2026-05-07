@@ -14,8 +14,6 @@ python-multipart==0.0.9
 tqdm==4.66.4
 scipy==1.13.1
 
-# Supabase (psycopg2 ile direkt PostgreSQL bağlantısı)
 psycopg2-binary==2.9.9
 
-# Pinecone
 pinecone==5.4.2

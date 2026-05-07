@@ -2,7 +2,6 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
-import SearchPage from './pages/SearchPage'
 import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
@@ -11,7 +10,6 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/search" element={<SearchPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </>

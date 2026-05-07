@@ -8,9 +8,6 @@ from app.services.recommender import get_engine
 
 router = APIRouter()
 
-
-# ─── Request / Response Modelleri ────────────────────────────
-
 class MovieResponse(BaseModel):
     movie_id: int
     title: str
@@ -38,13 +35,6 @@ class UserHistoryRequest(BaseModel):
     ratings: Optional[List[float]] = None
     top_n: int = 10
 
-
-class TextQueryRequest(BaseModel):
-    query: str
-    top_n: int = 10
-
-
-# ─── Endpoint'ler ─────────────────────────────────────────────
 
 @router.get("/movies", response_model=List[MovieResponse])
 def list_movies(
@@ -130,26 +120,6 @@ def recommend_for_user(request: UserHistoryRequest):
 
     return results
 
-
-@router.post("/recommend/search", response_model=List[RecommendationResponse])
-def recommend_by_text(request: TextQueryRequest):
-    """
-    Serbest metin sorgusu ile öneri üretir.
-    Örn: "space adventure with heroes" → benzer filmler
-    """
-    engine = get_engine()
-    if not engine.is_ready:
-        raise HTTPException(503, "Öneri motoru hazır değil.")
-
-    if not request.query.strip():
-        raise HTTPException(400, "Sorgu metni boş olamaz.")
-
-    results = engine.recommend_by_text_query(
-        query_text=request.query,
-        top_n=request.top_n
-    )
-
-    return results
 
 
 @router.get("/status")

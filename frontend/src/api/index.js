@@ -18,8 +18,5 @@ export const getUserRecommendations = (likedIds, ratings = null, topN = 10) =>
     top_n: topN
   }).then(r => r.data)
 
-export const searchByText = (query, topN = 10) =>
-  api.post('/recommend/search', { query, top_n: topN }).then(r => r.data)
-
 export const getStatus = () =>
   api.get('/status').then(r => r.data)

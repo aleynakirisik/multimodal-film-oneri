@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const tabs = [
   { label: '🎬 Filmler', path: '/' },
-  { label: '🔍 Metin Arama', path: '/search' },
   { label: '👤 Profilim', path: '/profile' },
 ]
 
