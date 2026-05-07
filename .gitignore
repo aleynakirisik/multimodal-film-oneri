@@ -1,4 +1,10 @@
 # Python gereksizleri
+backend/venv/
+frontend/node_modules/
+**/__pycache__/
+*.pyc
+.env
+
 __pycache__/
 *.py[cod]
 
@@ -7,8 +13,3 @@ __pycache__/
 *.pkl
 *.zip
 
-backend/venv/
-frontend/node_modules/
-**/__pycache__/
-*.pyc
-.env
