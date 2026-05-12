@@ -8,14 +8,11 @@ from app.services.recommender import get_engine
 
 router = APIRouter()
 
-
-# ─── Request / Response Modelleri ────────────────────────────
-
 class MovieResponse(BaseModel):
     movie_id: int
     title: str
     release_year: Optional[int]
-    genres: List[str]
+    genres: List[str] = []
     poster_url: Optional[str]
     avg_rating: Optional[float]
     vote_count: Optional[int] = None
@@ -38,13 +35,9 @@ class UserHistoryRequest(BaseModel):
     ratings: Optional[List[float]] = None
     top_n: int = 10
 
-
-class TextQueryRequest(BaseModel):
-    query: str
-    top_n: int = 10
-
-
-# ─── Endpoint'ler ─────────────────────────────────────────────
+class AddMovieRequest(BaseModel):
+    title: str
+    year: int
 
 @router.get("/movies", response_model=List[MovieResponse])
 def list_movies(
@@ -77,16 +70,12 @@ def get_movie(movie_id: int):
     if not engine.is_ready:
         raise HTTPException(503, "Öneri motoru hazır değil.")
 
-    movies = engine.get_all_movies()
-    for m in movies:
-        if m["movie_id"] == movie_id:
-            # Overview ekle
-            meta = engine._get_meta(movie_id)
-            m["overview"] = meta.get("overview", "")
-            m["vote_count"] = meta.get("vote_count")
-            return m
+    movie = engine.get_movie_by_id(movie_id)
 
-    raise HTTPException(404, f"Film bulunamadı: {movie_id}")
+    if not movie:
+        raise HTTPException(404, f"Film bulunamadı: {movie_id}")
+
+    return movie
 
 
 @router.get("/recommend/similar/{movie_id}", response_model=List[RecommendationResponse])
@@ -135,26 +124,6 @@ def recommend_for_user(request: UserHistoryRequest):
     return results
 
 
-@router.post("/recommend/search", response_model=List[RecommendationResponse])
-def recommend_by_text(request: TextQueryRequest):
-    """
-    Serbest metin sorgusu ile öneri üretir.
-    Örn: "space adventure with heroes" → benzer filmler
-    """
-    engine = get_engine()
-    if not engine.is_ready:
-        raise HTTPException(503, "Öneri motoru hazır değil.")
-
-    if not request.query.strip():
-        raise HTTPException(400, "Sorgu metni boş olamaz.")
-
-    results = engine.recommend_by_text_query(
-        query_text=request.query,
-        top_n=request.top_n
-    )
-
-    return results
-
 
 @router.get("/status")
 def status():
@@ -166,3 +135,22 @@ def status():
         "movie_count": movie_count,
         "message": "Sistem hazır." if engine.is_ready else "build_index.py çalıştırılmadı."
     }
+
+@router.post("/add-movie")
+async def add_new_movie(request: AddMovieRequest):
+    """
+    Admin panelinden gelen isteği alır ve AI Pipeline'ı çalıştırır.
+    """
+    engine = get_engine()
+    try:
+        # Recommender içindeki yeni fonksiyonu çağırıyoruz
+        # Bu satır TMDB -> VGG16 -> BERT -> Supabase/Pinecone akışını başlatır
+        movie_details = engine.process_new_movie_logic(request.title, request.year)
+        
+        return {
+            "status": "success",
+            "message": f"'{request.title}' başarıyla analiz edildi ve sisteme eklendi!",
+            "movie": movie_details
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Film ekleme hatası: {str(e)}")

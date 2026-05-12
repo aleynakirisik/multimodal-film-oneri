@@ -97,7 +97,7 @@ def enrich_movies_with_tmdb(movies_df, delay: float = 0.25) -> list:
             poster_path = result.get("poster_path", "")
             overview = result.get("overview", "")
 
-            # Özet çok kısaysa detay çek
+            
             if len(overview) < 20 and tmdb_id:
                 details = get_movie_details(tmdb_id)
                 if details:

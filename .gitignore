@@ -8,6 +8,12 @@ __pycache__/
 .vscode/
 
 # Python gereksizleri
+backend/venv/
+frontend/node_modules/
+**/__pycache__/
+*.pyc
+.env
+
 __pycache__/
 *.py[cod]
 
@@ -15,3 +21,5 @@ __pycache__/
 *.npy
 *.pkl
 *.zip
+
+backend/data/ml-latest-small/
