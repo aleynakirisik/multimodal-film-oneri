@@ -13,3 +13,4 @@ __pycache__/
 *.pkl
 *.zip
 
+backend/data/ml-latest-small/

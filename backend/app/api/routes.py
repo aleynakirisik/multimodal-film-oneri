@@ -35,6 +35,9 @@ class UserHistoryRequest(BaseModel):
     ratings: Optional[List[float]] = None
     top_n: int = 10
 
+class AddMovieRequest(BaseModel):
+    title: str
+    year: int
 
 @router.get("/movies", response_model=List[MovieResponse])
 def list_movies(
@@ -132,3 +135,22 @@ def status():
         "movie_count": movie_count,
         "message": "Sistem hazır." if engine.is_ready else "build_index.py çalıştırılmadı."
     }
+
+@router.post("/add-movie")
+async def add_new_movie(request: AddMovieRequest):
+    """
+    Admin panelinden gelen isteği alır ve AI Pipeline'ı çalıştırır.
+    """
+    engine = get_engine()
+    try:
+        # Recommender içindeki yeni fonksiyonu çağırıyoruz
+        # Bu satır TMDB -> VGG16 -> BERT -> Supabase/Pinecone akışını başlatır
+        movie_details = engine.process_new_movie_logic(request.title, request.year)
+        
+        return {
+            "status": "success",
+            "message": f"'{request.title}' başarıyla analiz edildi ve sisteme eklendi!",
+            "movie": movie_details
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Film ekleme hatası: {str(e)}")
