@@ -2,6 +2,10 @@
 backend/data/
 ml-latest-small/
 ml-100k/
+node_modules/
+__pycache__/
+.env
+.vscode/
 
 # Python gereksizleri
 __pycache__/
