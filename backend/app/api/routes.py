@@ -386,10 +386,6 @@ def status():
     return {
         "ready":       engine.is_ready,
         "movie_count": movie_count,
-<<<<<<< HEAD
-        "message":     "Sistem hazır." if engine.is_ready else " çalıştırılmadı.",
-    }
-=======
         "message": "Sistem hazır." if engine.is_ready else "build_index.py çalıştırılmadı."
     }
 
@@ -406,9 +402,8 @@ async def add_new_movie(request: AddMovieRequest):
         
         return {
             "status": "success",
-            "message": f"'{request.title}' başarıyla analiz edildi ve sisteme eklendi!",
+            "message": f"'{request.title}' başarıyla analiz edildi ve sisteme eklendi/güncellendi!",
             "movie": movie_details
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Film ekleme hatası: {str(e)}")
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4

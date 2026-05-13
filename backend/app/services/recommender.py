@@ -8,11 +8,8 @@ from app.core.config import (
     SUPABASE_DB_URL,
     PINECONE_API_KEY,
     PINECONE_INDEX,
-<<<<<<< HEAD
-=======
     TEXT_WEIGHT,
     TMDB_API_KEY
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
 )
 
 def _get_db_conn():
@@ -22,21 +19,12 @@ def _get_db_conn():
 def _fetch_movies_from_supabase() -> pd.DataFrame:
     conn = _get_db_conn()
     try:
-<<<<<<< HEAD
-        cur = conn.cursor()
-        cur.execute("SELECT id, title, overview, poster_path, genres, avg_rating, vote_count FROM movies;")
-        rows = cur.fetchall()
-        return pd.DataFrame(rows, columns=['movie_id','title','overview','poster_path','genres','avg_rating','vote_count'])
-    except Exception as e:
-        print(f" SQL Hatası: {e}")
-        return pd.DataFrame()
-=======
         # Puan ve yıl sütunlarını da çekiyoruz
         df = pd.read_sql(
             "SELECT id AS movie_id, title, overview, poster_path, genres, release_year, avg_rating, vote_count FROM movies;",
             conn
         )
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
+        return df
     finally:
         conn.close()
 
@@ -71,10 +59,7 @@ def _get_pinecone_index():
     return pc.Index(PINECONE_INDEX)
 
 def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = None):
-<<<<<<< HEAD
-=======
     """Pinecone'a vektör sorgusu atar."""
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
     index = _get_pinecone_index()
     
     # sadece filmleri getir
@@ -96,26 +81,12 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     """Pinecone match + Supabase verisini birleştirir."""
     movie_id = int(match["id"])
     score    = float(match.get("score", 0.0))
-<<<<<<< HEAD
-    pm       = match.get("metadata", {})
-
-=======
     
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
     row = meta_df[meta_df["movie_id"] == movie_id]
     if row.empty: return None
     res = row.iloc[0]
 
     return {
-<<<<<<< HEAD
-        "movie_id":         movie_id,
-        "title":            pm.get("title", ""),
-        "release_year":     None,
-        "genres":           genres,
-        "poster_url":       poster_url,
-        "avg_rating":       None,
-        "overview":         (overview or "")[:300],
-=======
         "movie_id":        movie_id,
         "title":           res["title"],
         "release_year":    int(res["release_year"]) if res["release_year"] else None,
@@ -123,7 +94,6 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
         "poster_url":      f"https://image.tmdb.org/t/p/w342{res['poster_path']}" if res["poster_path"] else None,
         "avg_rating":      res["avg_rating"],
         "overview":        (res["overview"] or "")[:300],
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
         "similarity_score": score,
     }
 
@@ -131,26 +101,6 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
 class RecommendationEngine:
     def __init__(self):
         self.is_ready = False
-<<<<<<< HEAD
-        self.meta_df  = pd.DataFrame()
-
-    def load(self):
-        print("LOAD FONKSİYONU BAŞLADI") 
-        
-        print("Supabase'den film metadata yükleniyor...")
-        self.meta_df = _fetch_movies_from_supabase()
-        print(f" {len(self.meta_df)} film yüklendi (Supabase)")
-
-        print(" Pinecone index kontrol ediliyor...")
-        try:
-            index = _get_pinecone_index()
-            stats = index.describe_index_stats()
-            total = stats.get("total_vector_count", 0)
-            print(f"✅ Pinecone hazır — {total} vektör")
-        except Exception as e:
-            print(f" Pinecone Hatası: {e}")
-
-=======
         self.meta_df  = pd.DataFrame() 
         # Modeli bir kez yükle
         from sentence_transformers import SentenceTransformer
@@ -161,17 +111,12 @@ class RecommendationEngine:
         print("⏳ Supabase'den film metadata yükleniyor...")
         self.meta_df = _fetch_movies_from_supabase()
         print(f"✅ {len(self.meta_df)} film yüklendi (Supabase)")
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
         self.is_ready = True
         print(" MOTOR HAZIR")
 
 
     def recommend_by_movie(self, movie_id: int, top_n: int = 10) -> List[dict]:
         index = _get_pinecone_index()
-<<<<<<< HEAD
-
-=======
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
         fetch_result = index.fetch(ids=[str(movie_id)])
         vectors = fetch_result.get("vectors", {})
         if str(movie_id) not in vectors:
@@ -304,19 +249,6 @@ class RecommendationEngine:
         if not self.is_ready or self.meta_df.empty: return []
         result = []
         for _, r in self.meta_df.iterrows():
-<<<<<<< HEAD
-            poster_path = r.get("poster_path")
-            raw_genres = r.get("genres", "")
-            genres = [g.strip() for g in str(raw_genres).split("|") if g.strip()] if raw_genres else []
-            result.append({
-                "movie_id":     int(r["movie_id"]),
-                "title":        str(r.get("title", "")),
-                "release_year": None,
-                "genres":       genres,  
-                "poster_url":   f"https://image.tmdb.org/t/p/w342{poster_path}" if poster_path else None,
-                "avg_rating":   float(r["avg_rating"]) if r.get("avg_rating") else None,
-                "vote_count":   int(r["vote_count"]) if r.get("vote_count") else None,
-=======
             result.append({
                 "movie_id":     int(r["movie_id"]),
                 "title":        str(r["title"]),
@@ -324,7 +256,6 @@ class RecommendationEngine:
                 "genres":       [g.strip() for g in str(r["genres"]).split(",")] if r["genres"] else [],
                 "poster_url":   f"https://image.tmdb.org/t/p/w342{r['poster_path']}" if r['poster_path'] else None,
                 "avg_rating":   r["avg_rating"],
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
             })
         return result
 

@@ -30,15 +30,12 @@ export default function App() {
     <>
       {user && <Navbar user={user} onLogout={handleLogout} />}
       <Routes>
-<<<<<<< HEAD
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
         <Route path="/" element={user ? <HomePage /> : <LoginPage onLogin={handleLogin} />} />
         <Route path="/profile" element={user ? <ProfilePage user={user} /> : <LoginPage onLogin={handleLogin} />} />
-=======
         <Route path="/" element={<HomePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/admin-portal" element={<AdminPage />} />
->>>>>>> c9397c8ecc1d14103515ded92ccd8659f3668da4
       </Routes>
     </>
   )
