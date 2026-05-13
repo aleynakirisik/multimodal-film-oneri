@@ -38,3 +38,6 @@ export const getUserRatings = (user_id) =>
 
 export const getStatus = () =>
   api.get('/status').then(r => r.data)
+
+export const addMovieRequest = (title, year) =>
+  api.post('/add-movie', { title, year }).then(r => r.data)
