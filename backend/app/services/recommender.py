@@ -8,8 +8,11 @@ from app.core.config import (
     SUPABASE_DB_URL,
     PINECONE_API_KEY,
     PINECONE_INDEX,
+<<<<<<< HEAD
     TEXT_WEIGHT,
     TMDB_API_KEY
+=======
+>>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
 )
 
 def _get_db_conn():
@@ -24,7 +27,11 @@ def _fetch_movies_from_supabase() -> pd.DataFrame:
             "SELECT id AS movie_id, title, overview, poster_path, genres, release_year, avg_rating, vote_count FROM movies;",
             conn
         )
+<<<<<<< HEAD
         return df
+=======
+        return df 
+>>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
     finally:
         conn.close()
 
@@ -59,7 +66,10 @@ def _get_pinecone_index():
     return pc.Index(PINECONE_INDEX)
 
 def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = None):
+<<<<<<< HEAD
     """Pinecone'a vektör sorgusu atar."""
+=======
+>>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
     index = _get_pinecone_index()
     
     # sadece filmleri getir
