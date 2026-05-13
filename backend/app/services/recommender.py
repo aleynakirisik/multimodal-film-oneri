@@ -1,10 +1,3 @@
-"""
-RecommendationEngine
-  - Film metadata  →  Supabase (PostgreSQL)
-  - Vektör sorgusu →  Pinecone
-  - Metin encode   →  Sentence-BERT (all-MiniLM-L6-v2)
-"""
-
 import numpy as np
 import pandas as pd
 from typing import List, Optional
@@ -13,10 +6,6 @@ from app.core.config import (
     SUPABASE_DB_URL,
     PINECONE_API_KEY,
     PINECONE_INDEX,
-    TEXT_WEIGHT,
-    COMBINED_FEATURES_FILE,
-    MOVIE_IDS_FILE,
-    MOVIES_META_FILE,
 )
 
 
@@ -24,18 +13,18 @@ def _get_db_conn():
     import psycopg2
     return psycopg2.connect(SUPABASE_DB_URL)
 
-
 def _fetch_movies_from_supabase() -> pd.DataFrame:
-    """movies tablosundaki tüm filmleri çeker."""
     conn = _get_db_conn()
     try:
-        df = pd.read_sql(
-            "SELECT id AS movie_id, title, overview, poster_path FROM movies;",
-            conn
-        )
+        cur = conn.cursor()
+        cur.execute("SELECT id, title, overview, poster_path, genres, avg_rating, vote_count FROM movies;")
+        rows = cur.fetchall()
+        return pd.DataFrame(rows, columns=['movie_id','title','overview','poster_path','genres','avg_rating','vote_count'])
+    except Exception as e:
+        print(f" SQL Hatası: {e}")
+        return pd.DataFrame()
     finally:
         conn.close()
-    return df
 
 
 def _fetch_movie_by_id_supabase(movie_id: int) -> Optional[dict]:
@@ -51,9 +40,9 @@ def _fetch_movie_by_id_supabase(movie_id: int) -> Optional[dict]:
         if not row:
             return None
         return {
-            "movie_id":   row[0],
-            "title":      row[1],
-            "overview":   row[2],
+            "movie_id":    row[0],
+            "title":       row[1],
+            "overview":    row[2],
             "poster_path": row[3],
         }
     finally:
@@ -67,15 +56,16 @@ def _get_pinecone_index():
 
 
 def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = None):
-    """
-    Pinecone'a vektör sorgusu atar.
-    Döndürülen matches listesini döner: [{id, score, metadata}, ...]
-    """
     index = _get_pinecone_index()
+    
+    # sadece filmleri getir
+    filter_dict = {"type": {"$ne": "user_profile"}}
+    
     result = index.query(
         vector=vector.tolist(),
         top_k=top_k + (len(exclude_ids) if exclude_ids else 0) + 5,
-        include_metadata=True
+        include_metadata=True,
+        filter=filter_dict 
     )
     matches = result.get("matches", [])
 
@@ -94,7 +84,7 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     """
     movie_id = int(match["id"])
     score    = float(match.get("score", 0.0))
-    pm       = match.get("metadata", {}) 
+    pm       = match.get("metadata", {})
 
     row = meta_df[meta_df["movie_id"] == movie_id]
     overview    = row.iloc[0]["overview"]    if not row.empty else None
@@ -109,35 +99,42 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     genres = [g.strip() for g in raw_genre.split(",") if g.strip()] if raw_genre else []
 
     return {
-        "movie_id":        movie_id,
-        "title":           pm.get("title", ""),
-        "release_year":    None,   
-        "genres":          genres,
-        "poster_url":      poster_url,
-        "avg_rating":      None,
-        "overview":        (overview or "")[:300],
+        "movie_id":         movie_id,
+        "title":            pm.get("title", ""),
+        "release_year":     None,
+        "genres":           genres,
+        "poster_url":       poster_url,
+        "avg_rating":       None,
+        "overview":         (overview or "")[:300],
         "similarity_score": score,
     }
+
 
 class RecommendationEngine:
 
     def __init__(self):
-        self.is_ready    = False
-        self.meta_df     = pd.DataFrame() 
+        self.is_ready = False
+        self.meta_df  = pd.DataFrame()
 
     def load(self):
-        """Supabase'den metadata çeker, Pinecone bağlantısını test eder."""
-        print("⏳ Supabase'den film metadata yükleniyor...")
+        print("LOAD FONKSİYONU BAŞLADI") 
+        
+        print("Supabase'den film metadata yükleniyor...")
         self.meta_df = _fetch_movies_from_supabase()
-        print(f"✅ {len(self.meta_df)} film yüklendi (Supabase)")
+        print(f" {len(self.meta_df)} film yüklendi (Supabase)")
 
-        print("⏳ Pinecone index kontrol ediliyor...")
-        index = _get_pinecone_index()
-        stats = index.describe_index_stats()
-        total = stats.get("total_vector_count", 0)
-        print(f"✅ Pinecone hazır — {total} vektör")
+        print(" Pinecone index kontrol ediliyor...")
+        try:
+            index = _get_pinecone_index()
+            stats = index.describe_index_stats()
+            total = stats.get("total_vector_count", 0)
+            print(f"✅ Pinecone hazır — {total} vektör")
+        except Exception as e:
+            print(f" Pinecone Hatası: {e}")
 
         self.is_ready = True
+        print(" MOTOR HAZIR")
+
 
     def recommend_by_movie(self, movie_id: int, top_n: int = 10) -> List[dict]:
         """
@@ -146,7 +143,6 @@ class RecommendationEngine:
         """
         index = _get_pinecone_index()
 
-        # kendi vektörünü al
         fetch_result = index.fetch(ids=[str(movie_id)])
         vectors = fetch_result.get("vectors", {})
         if str(movie_id) not in vectors:
@@ -195,6 +191,95 @@ class RecommendationEngine:
         )
         return [r for m in matches if (r := _build_result(m, self.meta_df))]
 
+
+    def update_user_profile(self, user_id: str) -> None:
+        """
+        Kullanıcının Supabase'deki tüm puanlarını çeker,
+        puan ağırlıklı ortalama profil vektörü oluşturur ve
+        Pinecone'a 'user:{user_id}' anahtarıyla yazar.
+
+        Kayıtta filmler puansız (rating=None) eklenebilir;
+        bu durumda o filmler vektör ortalamasına eşit ağırlıkla (0.6) katılır
+        ama avg_rating güncellenmez — kullanıcı arayüzde yıldız görmez.
+        """
+        conn = _get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT movie_id, rating FROM ratings WHERE user_id = %s;",
+                (user_id,)
+            )
+            rows = cur.fetchall()
+        finally:
+            conn.close()
+
+        if not rows:
+            return
+
+        index = _get_pinecone_index()
+        movie_ids = [str(r[0]) for r in rows]
+        # rating=None olan filmler için nötr ağırlık (0.6)
+        raw_ratings = [r[1] for r in rows]
+
+        fetch_result = index.fetch(ids=movie_ids)
+        fetched = fetch_result.get("vectors", {})
+
+        vectors, weights = [], []
+        for mid, rating in zip(movie_ids, raw_ratings):
+            if mid in fetched:
+                vec = np.array(fetched[mid]["values"], dtype=np.float32)
+                vectors.append(vec)
+                if rating is not None:
+                    weights.append(max(0.2, float(rating) / 5.0))
+                else:
+                    weights.append(0.6)  
+
+        if not vectors:
+            return
+
+        vectors = np.array(vectors)
+        weights = np.array(weights).reshape(-1, 1)
+        profile = np.sum(vectors * weights, axis=0)
+        profile /= (np.linalg.norm(profile) + 1e-10)
+
+        index.upsert(vectors=[{
+            "id":     f"user:{user_id}",
+            "values": profile.tolist(),
+            "metadata": {"type": "user_profile", "user_id": user_id}
+        }])
+
+    def recommend_for_user_id(self, user_id: str, top_n: int = 10) -> Optional[List[dict]]:
+        """
+        Pinecone'daki kullanıcı profil vektörüyle en yakın filmleri döndürür.
+        İzlenen / seçilen filmler sonuçtan çıkarılır.
+        Profil yoksa None döner (henüz hiç seçim yapılmamış).
+        """
+        index = _get_pinecone_index()
+
+        fetch_result = index.fetch(ids=[f"user:{user_id}"])
+        vectors = fetch_result.get("vectors", {})
+
+        if f"user:{user_id}" not in vectors:
+            return None
+
+        profile = np.array(vectors[f"user:{user_id}"]["values"], dtype=np.float32)
+
+        # daha önce seçilen/izlenen filmleri hariç tut
+        conn = _get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT movie_id FROM ratings WHERE user_id = %s;",
+                (user_id,)
+            )
+            watched = [str(r[0]) for r in cur.fetchall()]
+        finally:
+            conn.close()
+
+        matches = _pinecone_query(profile, top_k=top_n, exclude_ids=watched)
+        return [r for m in matches if (r := _build_result(m, self.meta_df))]
+
+
     def get_movie_by_id(self, movie_id: int) -> Optional[dict]:
         row = _fetch_movie_by_id_supabase(movie_id)
         if not row:
@@ -212,20 +297,22 @@ class RecommendationEngine:
             "overview":     (row.get("overview") or "")[:300],
         }
 
-
     def get_all_movies(self) -> List[dict]:
         if not self.is_ready or self.meta_df.empty:
             return []
         result = []
         for _, r in self.meta_df.iterrows():
             poster_path = r.get("poster_path")
+            raw_genres = r.get("genres", "")
+            genres = [g.strip() for g in str(raw_genres).split("|") if g.strip()] if raw_genres else []
             result.append({
                 "movie_id":     int(r["movie_id"]),
                 "title":        str(r.get("title", "")),
                 "release_year": None,
-                "genres":       [],
+                "genres":       genres,  
                 "poster_url":   f"https://image.tmdb.org/t/p/w342{poster_path}" if poster_path else None,
-                "avg_rating":   None,
+                "avg_rating":   float(r["avg_rating"]) if r.get("avg_rating") else None,
+                "vote_count":   int(r["vote_count"]) if r.get("vote_count") else None,
             })
         return result
 

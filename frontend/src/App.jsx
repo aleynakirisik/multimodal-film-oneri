@@ -1,16 +1,37 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
+import LoginPage from './pages/LoginPage'
 
 export default function App() {
+  const [user, setUser] = useState(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('user')
+    if (saved) setUser(JSON.parse(saved))
+  }, [])
+
+  const handleLogin = (userData) => {
+    setUser(userData)
+    sessionStorage.setItem('user', JSON.stringify(userData))
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+    sessionStorage.removeItem('user')
+    navigate('/login')
+  }
+
   return (
     <>
-      <Navbar />
+      {user && <Navbar user={user} onLogout={handleLogout} />}
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+        <Route path="/" element={user ? <HomePage /> : <LoginPage onLogin={handleLogin} />} />
+        <Route path="/profile" element={user ? <ProfilePage user={user} /> : <LoginPage onLogin={handleLogin} />} />
       </Routes>
     </>
   )

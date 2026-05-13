@@ -1,4 +1,11 @@
-# Python gereksizleri
+backend/data/
+ml-latest-small/
+ml-100k/
+node_modules/
+__pycache__/
+.env
+.vscode/
+
 backend/venv/
 frontend/node_modules/
 **/__pycache__/
@@ -8,8 +15,9 @@ frontend/node_modules/
 __pycache__/
 *.py[cod]
 
-# Colab çıktıları
+# colab çıktıları
 *.npy
 *.pkl
 *.zip
 
+backend/data/ml-latest-small/

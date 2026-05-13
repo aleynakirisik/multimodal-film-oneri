@@ -1,7 +1,3 @@
-"""
-TMDB (The Movie Database) API ile film posteri ve özet bilgisi çeker.
-API anahtarı: https://www.themoviedb.org/settings/api
-"""
 import time
 import requests
 from typing import Optional

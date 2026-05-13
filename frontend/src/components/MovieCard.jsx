@@ -1,6 +1,6 @@
 import React from 'react'
 
-const FALLBACK = 'https://via.placeholder.com/200x300/1a1a24/7c6af7?text=No+Poster'
+const FALLBACK = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='300' style='background:%231a1a24'><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%237c6af7' font-size='13' font-family='sans-serif'>Poster Yok</text></svg>`
 
 function fixTitle(title) {
   if (!title) return title
@@ -69,7 +69,9 @@ export default function MovieCard({ movie, onClick, showScore = false }) {
           {movie.avg_rating && (
             <span style={{ marginLeft: 8, ...styles.rating }}>
               ★ {movie.avg_rating.toFixed(1)}
-              {movie.vote_count && <span style={{ color: 'var(--text-muted)' }}> ({movie.vote_count})</span>}
+              {movie.vote_count && (
+                <span style={{ color: 'var(--text-muted)' }}> ({movie.vote_count})</span>
+              )}
             </span>
           )}
         </div>
