@@ -81,7 +81,7 @@ export default function RegisterPage({ onLogin }) {
     <div style={s.page}>
       <div style={s.card}>
         <div style={s.title}>{step === 1 ? 'Aramıza Katıl' : 'Zevkini Belirle'}</div>
-        <div style={s.subtitle}>{step === 1 ? 'Hesabını oluştur' : 'Sana uygun öneriler için 3 film seç'}</div>
+        <div style={s.subtitle}>{step === 1 ? 'Hesap oluştur' : 'Sana uygun öneriler için 3 film seç'}</div>
 
         {step === 1 ? (
           <>
