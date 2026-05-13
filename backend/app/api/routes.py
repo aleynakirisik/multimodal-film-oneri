@@ -45,6 +45,7 @@ class AddMovieRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str
+    email: str
     password: str
     # Kayıt sırasında seçilen 3 film — rating YOK, sadece tercih sinyali
     initial_movie_ids: List[int]
@@ -77,6 +78,8 @@ def ensure_tables():
                 id TEXT PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT DEFAULT 'user',
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
@@ -105,6 +108,29 @@ except Exception as e:
     print(f"Tablo oluşturma hatası: {e}")
 
 
+@router.post("/auth/check-availability")
+def check_availability(req: dict):
+    username = req.get("username")
+    email = req.get("email")
+    
+    conn = _get_db_conn()
+    cur = conn.cursor()
+    try:
+        # Kullanıcı adı kontrolü
+        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+        if cur.fetchone():
+            raise HTTPException(409, "Bu kullanıcı adı zaten alınmış.")
+            
+        # Email kontrolü
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if cur.fetchone():
+            raise HTTPException(409, "Bu e-posta adresi zaten kullanımda.")
+            
+        return {"status": "available"}
+    finally:
+        cur.close()
+        conn.close()
+        
 # ─── Auth Endpoint'leri ───────────────────────────────────────
 
 @router.post("/auth/register")
@@ -118,19 +144,19 @@ def register(req: RegisterRequest):
     if len(req.username) < 3:
         raise HTTPException(400, "Kullanıcı adı en az 3 karakter olmalı.")
     if len(req.password) < 6:
-        raise HTTPException(400, "Şifre en az 4 karakter olmalı.")
+        raise HTTPException(400, "Şifre en az 6 karakter olmalı.")
     if len(req.initial_movie_ids) < 3:
         raise HTTPException(400, "Kayıt için tam olarak 3 film seçmelisiniz.")
+    if "@" not in req.email:
+        raise HTTPException(400, "Geçerli bir e-posta adresi giriniz.")
 
     conn = _get_db_conn()
     cur = conn.cursor()
     try:
         user_id = str(uuid.uuid4())
-
-        # kullanıcıyı oluştur
         cur.execute(
-            "INSERT INTO users (id, username, password_hash) VALUES (%s, %s, %s)",
-            (user_id, req.username, hash_password(req.password))
+            "INSERT INTO users (id, username, email, password_hash) VALUES (%s, %s, %s, %s)",
+            (user_id, req.username, req.email, hash_password(req.password))
         )
 
         # 3 filmi rating=NULL ile kaydet (cold start)
@@ -146,7 +172,7 @@ def register(req: RegisterRequest):
         conn.rollback()
         err = str(e)
         if "unique" in err.lower() or "duplicate" in err.lower():
-            raise HTTPException(409, "Bu kullanıcı adı zaten alınmış.")
+            raise HTTPException(409, "Bu kullanıcı adı veya e-posta zaten alınmış.")
         raise HTTPException(500, f"Kayıt sırasında hata: {err}")
     finally:
         cur.close()

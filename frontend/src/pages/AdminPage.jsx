@@ -6,7 +6,6 @@ export default function AdminPage() {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // src/pages/AdminPage.jsx içindeki handleSubmit kısmını şöyle güncelle:
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);

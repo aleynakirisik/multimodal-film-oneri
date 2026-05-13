@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import AdminPage from './pages/AdminPage'
+import RegisterPage from './pages/RegisterPage'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -31,11 +32,11 @@ export default function App() {
       {user && <Navbar user={user} onLogout={handleLogout} />}
       <Routes>
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-        <Route path="/" element={user ? <HomePage /> : <LoginPage onLogin={handleLogin} />} />
         <Route path="/profile" element={user ? <ProfilePage user={user} /> : <LoginPage onLogin={handleLogin} />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/admin-portal" element={<AdminPage />} />
+        <Route path="/register" element={<RegisterPage onLogin={handleLogin} />} />
       </Routes>
     </>
   )

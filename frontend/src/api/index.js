@@ -22,9 +22,14 @@ export const getSimilar = (movieId, topN = 10) =>
 export const getPersonalized = (userId, topN = 10) =>
   api.get(`/recommend/personalized/${userId}`, { params: { top_n: topN } }).then(r => r.data)
 
-export const register = async (username, password, initial_movie_ids) => {
-  const res = await api.post('/auth/register', { username, password, initial_movie_ids })
-  return res.data
+export const register = async (username, email, password, initial_movie_ids) => {
+  const res = await api.post('/auth/register', { 
+    username, 
+    email,             // Backend bu anahtarı (key) "email" olarak bekliyor
+    password, 
+    initial_movie_ids  // Backend bu anahtarı "initial_movie_ids" olarak bekliyor
+  });
+  return res.data;
 }
 
 export const login = (username, password) =>
@@ -41,3 +46,11 @@ export const getStatus = () =>
 
 export const addMovieRequest = (title, year) =>
   api.post('/add-movie', { title, year }).then(r => r.data)
+
+export const checkAvailability = async (username, email) => {
+  const response = await api.post('/auth/check-availability', { 
+    username, 
+    email 
+  });
+  return response.data;
+};
