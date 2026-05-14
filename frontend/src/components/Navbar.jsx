@@ -6,7 +6,7 @@ const tabs = [
   { label: '👤 Profilim', path: '/profile' },
 ]
 
-export default function Navbar() {
+export default function Navbar({ user, onLogout }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
@@ -62,6 +62,19 @@ return (
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
           {user?.username} ({user?.role === 'admin' ? 'Yönetici' : 'Kullanıcı'})
         </span>
+        <button
+          onClick={onLogout}
+          style={{
+            background: 'none', border: '1px solid var(--border)',
+            borderRadius: 8, color: 'var(--text-muted)',
+            padding: '5px 14px', cursor: 'pointer', fontSize: 13
+          }}
+        >
+          Çıkış
+        </button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        
         <button
           onClick={onLogout}
           style={{

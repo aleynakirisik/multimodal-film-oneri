@@ -1,6 +1,11 @@
 import React from 'react'
 
-const FALLBACK = 'https://via.placeholder.com/200x300/1a1a24/7c6af7?text=No+Poster'
+const FALLBACK = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='300' style='background:%231a1a24'><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%237c6af7' font-size='13' font-family='sans-serif'>Poster Yok</text></svg>`
+
+function fixTitle(title) {
+  if (!title) return title
+  return title.replace(/^(.*),\s*(The|A|An)\s*$/i, '$2 $1').trim()
+}
 
 const styles = {
   card: {
@@ -53,18 +58,20 @@ export default function MovieCard({ movie, onClick, showScore = false }) {
     >
       <img
         src={imgErr || !movie.poster_url ? FALLBACK : movie.poster_url}
-        alt={movie.title}
+        alt={fixTitle(movie.title)}
         style={styles.poster}
         onError={() => setImgErr(true)}
       />
       <div style={styles.body}>
-        <div style={styles.title}>{movie.title}</div>
+        <div style={styles.title}>{fixTitle(movie.title)}</div>
         <div style={styles.meta}>
           {movie.release_year && <span>{movie.release_year}</span>}
           {movie.avg_rating && (
             <span style={{ marginLeft: 8, ...styles.rating }}>
               ★ {movie.avg_rating.toFixed(1)}
-              {movie.vote_count && <span style={{ color: 'var(--text-muted)' }}> ({movie.vote_count})</span>}
+              {movie.vote_count && (
+                <span style={{ color: 'var(--text-muted)' }}> ({movie.vote_count})</span>
+              )}
             </span>
           )}
         </div>

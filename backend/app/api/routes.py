@@ -4,7 +4,8 @@ Film ve Öneri API Endpoint'leri
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
-from app.services.recommender import get_engine
+from app.services.recommender import get_engine, _get_db_conn
+import hashlib, uuid
 
 router = APIRouter()
 
@@ -38,6 +39,9 @@ class UserHistoryRequest(BaseModel):
     ratings: Optional[List[float]] = None
     top_n: int = 10
 
+class AddMovieRequest(BaseModel):
+    title: str
+    year: int
 
 class RegisterRequest(BaseModel):
     username: str
@@ -183,6 +187,7 @@ def register(req: RegisterRequest):
 
 @router.post("/auth/login")
 def login(req: LoginRequest):
+    """Kullanıcı girişi."""
     conn = _get_db_conn()
     cur = conn.cursor()
     try:
@@ -294,13 +299,12 @@ def get_user_ratings(user_id: str):
         conn.close()
 
 
-# ─── Endpoint'ler ─────────────────────────────────────────────
 
 @router.get("/movies", response_model=List[MovieResponse])
 def list_movies(
     search: Optional[str] = Query(None, description="Film adı ile arama"),
-    genre: Optional[str] = Query(None, description="Tür filtresi"),
-    limit: int = Query(50, le=500)
+    genre:  Optional[str] = Query(None, description="Tür filtresi"),
+    limit:  int           = Query(50, le=500)
 ):
     """Tüm filmleri listele, arama ve filtreleme destekler."""
     engine = get_engine()
@@ -328,11 +332,10 @@ def get_movie(movie_id: int):
         raise HTTPException(503, "Öneri motoru hazır değil.")
 
     movie = engine.get_movie_by_id(movie_id)
-
     if not movie:
         raise HTTPException(404, f"Film bulunamadı: {movie_id}")
-
     return movie
+
 
 
 @router.get("/recommend/similar/{movie_id}", response_model=List[RecommendationResponse])
@@ -340,10 +343,7 @@ def recommend_similar(
     movie_id: int,
     top_n: int = Query(10, ge=1, le=50)
 ):
-    """
-    Belirli bir filme benzer filmleri önerir.
-    İçerik tabanlı - soğuk başlangıç için idealdir.
-    """
+    """Belirli bir filme benzer filmleri önerir."""
     engine = get_engine()
     if not engine.is_ready:
         raise HTTPException(503, "Öneri motoru hazır değil.")
@@ -351,17 +351,12 @@ def recommend_similar(
     results = engine.recommend_by_movie(movie_id, top_n=top_n)
     if not results:
         raise HTTPException(404, f"Film ID {movie_id} için öneri üretilemedi.")
-
     return results
 
 
 @router.post("/recommend/user", response_model=List[RecommendationResponse])
 def recommend_for_user(request: UserHistoryRequest):
-    """
-    Kullanıcının izleme geçmişine göre öneri üretir.
-    liked_movie_ids: Beğenilen film ID'leri
-    ratings: Her film için puan (opsiyonel, 1-5)
-    """
+    """Kullanıcının izleme geçmişine göre öneri üretir."""
     engine = get_engine()
     if not engine.is_ready:
         raise HTTPException(503, "Öneri motoru hazır değil.")
@@ -377,38 +372,64 @@ def recommend_for_user(request: UserHistoryRequest):
 
     if not results:
         raise HTTPException(404, "Öneri üretilemedi. Film ID'leri geçerli mi?")
-
     return results
 
 
-@router.post("/recommend/search", response_model=List[RecommendationResponse])
-def recommend_by_text(request: TextQueryRequest):
+@router.get("/recommend/personalized/{user_id}", response_model=List[RecommendationResponse])
+def recommend_personalized(
+    user_id: str,
+    top_n: int = Query(10, ge=1, le=50)
+):
     """
-    Serbest metin sorgusu ile öneri üretir.
-    Örn: "space adventure with heroes" → benzer filmler
+    Kullanıcının Pinecone profil vektörüne göre kişisel öneri döndürür.
+    - Kayıt anında oluşturulan cold-start profiliyle hemen çalışır.
+    - Kullanıcı puan verdikçe profil güncellenir ve öneriler gelişir.
+    - Daha önce seçilen / izlenen filmler listeden çıkarılır.
     """
     engine = get_engine()
     if not engine.is_ready:
         raise HTTPException(503, "Öneri motoru hazır değil.")
 
-    if not request.query.strip():
-        raise HTTPException(400, "Sorgu metni boş olamaz.")
-
-    results = engine.recommend_by_text_query(
-        query_text=request.query,
-        top_n=request.top_n
-    )
-
+    results = engine.recommend_for_user_id(user_id, top_n=top_n)
+    if results is None:
+        raise HTTPException(404, "Kullanıcı profili bulunamadı. Kayıt sırasında film seçilmemiş olabilir.")
     return results
 
+@router.on_event("startup")
+async def startup_event():
+    print("Uygulama başlatılıyor, motor yükleniyor...")
+    try:
+        engine = get_engine()
+        print(f" Toplam film: {len(engine.meta_df)}")
+    except Exception as e:
+        print(f" Başlatma sırasında kritik hata: {e}")
 
 @router.get("/status")
 def status():
     """Sistem durumu."""
     engine = get_engine()
-    movie_count = len(engine.movie_ids) if engine.is_ready else 0
+    movie_count = len(engine.meta_df) if engine.is_ready else 0
     return {
-        "ready": engine.is_ready,
+        "ready":       engine.is_ready,
         "movie_count": movie_count,
         "message": "Sistem hazır." if engine.is_ready else "build_index.py çalıştırılmadı."
     }
+
+@router.post("/add-movie")
+async def add_new_movie(request: AddMovieRequest):
+    """
+    Admin panelinden gelen isteği alır ve AI Pipeline'ı çalıştırır.
+    """
+    engine = get_engine()
+    try:
+        # Recommender içindeki yeni fonksiyonu çağırıyoruz
+        # Bu satır TMDB -> VGG16 -> BERT -> Supabase/Pinecone akışını başlatır
+        movie_details = engine.process_new_movie_logic(request.title, request.year)
+        
+        return {
+            "status": "success",
+            "message": f"'{request.title}' başarıyla analiz edildi ve sisteme eklendi/güncellendi!",
+            "movie": movie_details
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Film ekleme hatası: {str(e)}")

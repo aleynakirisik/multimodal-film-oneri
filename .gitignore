@@ -1,4 +1,7 @@
 backend/data/
+ml-latest-small/
+ml-100k/
+
 node_modules/
 __pycache__/
 .env
@@ -13,6 +16,10 @@ frontend/node_modules/
 __pycache__/
 *.py[cod]
 
+# colab çıktıları
 *.npy
 *.pkl
 *.zip
+
+backend/data/ml-latest-small/
+

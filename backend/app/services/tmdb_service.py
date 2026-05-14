@@ -1,7 +1,3 @@
-"""
-TMDB (The Movie Database) API ile film posteri ve özet bilgisi çeker.
-API anahtarı: https://www.themoviedb.org/settings/api
-"""
 import time
 import requests
 from typing import Optional
@@ -97,7 +93,7 @@ def enrich_movies_with_tmdb(movies_df, delay: float = 0.25) -> list:
             poster_path = result.get("poster_path", "")
             overview = result.get("overview", "")
 
-            # Özet çok kısaysa detay çek
+            
             if len(overview) < 20 and tmdb_id:
                 details = get_movie_details(tmdb_id)
                 if details:

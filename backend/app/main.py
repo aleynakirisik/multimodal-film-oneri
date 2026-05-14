@@ -1,6 +1,3 @@
-"""
-Multimodal Film Öneri Sistemi - FastAPI Ana Uygulama
-"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
@@ -11,7 +8,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# React frontend için CORS izni
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],
