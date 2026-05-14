@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const tabs = [
   { label: '🎬 Filmler', path: '/' },
-  { label: '🔍 Metin Arama', path: '/search' },
   { label: '👤 Profilim', path: '/profile' },
 ]
 
@@ -11,7 +10,7 @@ export default function Navbar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  return (
+return (
     <nav style={{
       background: 'var(--surface)',
       borderBottom: '1px solid var(--border)',
@@ -41,6 +40,38 @@ export default function Navbar() {
             {t.label}
           </button>
         ))}
+
+        {/* ŞEMA DEĞİŞİKLİĞİNE GÖRE GÜNCELLENEN ROL KONTROLÜ */}
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => navigate('/admin-portal')}
+            style={{
+              background: pathname === '/admin-portal' ? 'var(--accent)' : 'transparent',
+              color: pathname === '/admin-portal' ? '#fff' : 'var(--accent)',
+              border: '1px solid var(--accent)',
+              borderRadius: 8, padding: '6px 16px',
+              cursor: 'pointer', fontSize: 14, fontWeight: 600,
+              marginLeft: 8, transition: 'all 0.15s'
+            }}
+          >
+            ⚙️ Admin Paneli
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          {user?.username} ({user?.role === 'admin' ? 'Yönetici' : 'Kullanıcı'})
+        </span>
+        <button
+          onClick={onLogout}
+          style={{
+            background: 'none', border: '1px solid var(--border)',
+            borderRadius: 8, color: 'var(--text-muted)',
+            padding: '5px 14px', cursor: 'pointer', fontSize: 13
+          }}
+        >
+          Çıkış
+        </button>
       </div>
     </nav>
   )
