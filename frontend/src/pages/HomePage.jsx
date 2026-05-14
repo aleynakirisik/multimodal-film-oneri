@@ -126,7 +126,7 @@ export default function HomePage() {
       )}
 
       <div style={{ marginBottom: 40 }}>
-        <h2 style={s.h2}>✨ Senin İçin Seçtiklerimiz</h2>
+        <h2 style={s.h2}> Senin İçin Seçtiklerimiz</h2>
         {recLoading ? (
           <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>
             Öneriler hazırlanıyor...

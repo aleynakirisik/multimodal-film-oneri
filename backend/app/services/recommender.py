@@ -86,7 +86,7 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     return {
         "movie_id":        movie_id,
         "title":           res["title"],
-        "release_year":    int(res["release_year"]) if res["release_year"] else None,
+        "release_year": int(res["release_year"]) if res["release_year"] and not pd.isna(res["release_year"]) else None,
         "genres":          [g.strip() for g in str(res["genres"]).split(",")] if res["genres"] else [],
         "poster_url":      f"https://image.tmdb.org/t/p/w342{res['poster_path']}" if res["poster_path"] else None,
         "avg_rating":      res["avg_rating"],
@@ -234,7 +234,7 @@ class RecommendationEngine:
         return {
             "movie_id":     movie_id,
             "title":        row["title"],
-            "release_year": row["release_year"],
+            "release_year": int(row["release_year"]) if row["release_year"] and not pd.isna(row["release_year"]) else None,
             "genres":       [g.strip() for g in str(row["genres"]).split(",")] if row["genres"] else [],
             "poster_url":   f"https://image.tmdb.org/t/p/w342{row['poster_path']}" if row['poster_path'] else None,
             "avg_rating":   row["avg_rating"],
@@ -249,7 +249,7 @@ class RecommendationEngine:
             result.append({
                 "movie_id":     int(r["movie_id"]),
                 "title":        str(r["title"]),
-                "release_year": int(r["release_year"]) if r["release_year"] else None,
+                "release_year": int(r["release_year"]) if r["release_year"] and not pd.isna(r["release_year"]) else None,
                 "genres":       [g.strip() for g in str(r["genres"]).split(",")] if r["genres"] else [],
                 "poster_url":   f"https://image.tmdb.org/t/p/w342{r['poster_path']}" if r['poster_path'] else None,
                 "avg_rating":   r["avg_rating"],

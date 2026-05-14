@@ -154,12 +154,6 @@ export default function ProfilePage({ user }) {
             </div>
           )}
         </div>
-        {/* toplam film sayısı */}
-        {!moviesLoading && allMovies.length > 0 && (
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
-            {allMovies.length} film aranabilir
-          </p>
-        )}
       </div>
 
       {/* izleme Listesi */}

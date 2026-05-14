@@ -22,7 +22,7 @@ return (
       position: 'sticky', top: 0, zIndex: 100
     }}>
       <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--accent)' }}>
-        🎥 FilmÖneri
+        Film Öneri
       </div>
       <div style={{ display: 'flex', gap: 4 }}>
         {tabs.map(t => (
@@ -41,8 +41,8 @@ return (
           </button>
         ))}
 
-        {/* ŞEMA DEĞİŞİKLİĞİNE GÖRE GÜNCELLENEN ROL KONTROLÜ */}
-        {user?.role === 'admin' && (
+        {/* SADECE ADMİN KULLANICISI İÇİN GÖRÜNEN BUTON */}
+        {user?.username === 'admin' && (
           <button
             onClick={() => navigate('/admin-portal')}
             style={{
@@ -60,21 +60,8 @@ return (
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          {user?.username} ({user?.role === 'admin' ? 'Yönetici' : 'Kullanıcı'})
+          {user?.username}
         </span>
-        <button
-          onClick={onLogout}
-          style={{
-            background: 'none', border: '1px solid var(--border)',
-            borderRadius: 8, color: 'var(--text-muted)',
-            padding: '5px 14px', cursor: 'pointer', fontSize: 13
-          }}
-        >
-          Çıkış
-        </button>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        
         <button
           onClick={onLogout}
           style={{
