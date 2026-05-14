@@ -96,7 +96,7 @@ export default function RegisterPage({ onLogin }) {
           </>
         ) : (
           <>
-            <input style={s.input} placeholder="🔎 Film ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <input style={s.input} placeholder=" Film ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             <div style={s.grid}>
               {movies.map(m => (
                 <div key={m.movie_id} style={s.movieItem(selectedIds.includes(m.movie_id))} onClick={() => toggleSelect(m.movie_id)}>

@@ -192,13 +192,13 @@ def login(req: LoginRequest):
     cur = conn.cursor()
     try:
         cur.execute(
-            "SELECT id, username FROM users WHERE username = %s AND password_hash = %s",
+            "SELECT id, username, role FROM users WHERE username = %s AND password_hash = %s",
             (req.username, hash_password(req.password))
         )
         row = cur.fetchone()
         if not row:
-            raise HTTPException(401, "Kullanıcı adı veya şifre hatalı.")
-        return {"user_id": row[0], "username": row[1]}
+            raise HTTPException(401, "Hatalı giriş.")
+        return {"user_id": row[0], "username": row[1], "role": row[2]} # Rolü ekledik
     finally:
         cur.close()
         conn.close()

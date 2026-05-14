@@ -8,11 +8,6 @@ from app.core.config import (
     SUPABASE_DB_URL,
     PINECONE_API_KEY,
     PINECONE_INDEX,
-<<<<<<< HEAD
-    TEXT_WEIGHT,
-    TMDB_API_KEY
-=======
->>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
 )
 
 def _get_db_conn():
@@ -27,11 +22,7 @@ def _fetch_movies_from_supabase() -> pd.DataFrame:
             "SELECT id AS movie_id, title, overview, poster_path, genres, release_year, avg_rating, vote_count FROM movies;",
             conn
         )
-<<<<<<< HEAD
-        return df
-=======
         return df 
->>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
     finally:
         conn.close()
 
@@ -66,10 +57,6 @@ def _get_pinecone_index():
     return pc.Index(PINECONE_INDEX)
 
 def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = None):
-<<<<<<< HEAD
-    """Pinecone'a vektör sorgusu atar."""
-=======
->>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
     index = _get_pinecone_index()
     
     # sadece filmleri getir
@@ -99,7 +86,7 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
     return {
         "movie_id":        movie_id,
         "title":           res["title"],
-        "release_year":    int(res["release_year"]) if res["release_year"] else None,
+        "release_year": int(res["release_year"]) if res["release_year"] and not pd.isna(res["release_year"]) else None,
         "genres":          [g.strip() for g in str(res["genres"]).split(",")] if res["genres"] else [],
         "poster_url":      f"https://image.tmdb.org/t/p/w342{res['poster_path']}" if res["poster_path"] else None,
         "avg_rating":      res["avg_rating"],
@@ -247,7 +234,7 @@ class RecommendationEngine:
         return {
             "movie_id":     movie_id,
             "title":        row["title"],
-            "release_year": row["release_year"],
+            "release_year": int(row["release_year"]) if row["release_year"] and not pd.isna(row["release_year"]) else None,
             "genres":       [g.strip() for g in str(row["genres"]).split(",")] if row["genres"] else [],
             "poster_url":   f"https://image.tmdb.org/t/p/w342{row['poster_path']}" if row['poster_path'] else None,
             "avg_rating":   row["avg_rating"],
@@ -262,7 +249,7 @@ class RecommendationEngine:
             result.append({
                 "movie_id":     int(r["movie_id"]),
                 "title":        str(r["title"]),
-                "release_year": int(r["release_year"]) if r["release_year"] else None,
+                "release_year": int(r["release_year"]) if r["release_year"] and not pd.isna(r["release_year"]) else None,
                 "genres":       [g.strip() for g in str(r["genres"]).split(",")] if r["genres"] else [],
                 "poster_url":   f"https://image.tmdb.org/t/p/w342{r['poster_path']}" if r['poster_path'] else None,
                 "avg_rating":   r["avg_rating"],

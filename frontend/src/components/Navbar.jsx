@@ -10,7 +10,7 @@ export default function Navbar({ user, onLogout }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  return (
+return (
     <nav style={{
       background: 'var(--surface)',
       borderBottom: '1px solid var(--border)',
@@ -22,7 +22,7 @@ export default function Navbar({ user, onLogout }) {
       position: 'sticky', top: 0, zIndex: 100
     }}>
       <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--accent)' }}>
-        🎥 FilmÖneri
+        Film Öneri
       </div>
       <div style={{ display: 'flex', gap: 4 }}>
         {tabs.map(t => (
@@ -40,9 +40,28 @@ export default function Navbar({ user, onLogout }) {
             {t.label}
           </button>
         ))}
+
+        {/* SADECE ADMİN KULLANICISI İÇİN GÖRÜNEN BUTON */}
+        {user?.username === 'admin' && (
+          <button
+            onClick={() => navigate('/admin-portal')}
+            style={{
+              background: pathname === '/admin-portal' ? 'var(--accent)' : 'transparent',
+              color: pathname === '/admin-portal' ? '#fff' : 'var(--accent)',
+              border: '1px solid var(--accent)',
+              borderRadius: 8, padding: '6px 16px',
+              cursor: 'pointer', fontSize: 14, fontWeight: 600,
+              marginLeft: 8, transition: 'all 0.15s'
+            }}
+          >
+            ⚙️ Admin Paneli
+          </button>
+        )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          {user?.username}
+        </span>
         <button
           onClick={onLogout}
           style={{

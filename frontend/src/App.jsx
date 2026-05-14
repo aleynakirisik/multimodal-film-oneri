@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
+import { Routes, Route, useNavigate , Navigate} from 'react-router-dom'
 import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
-import AdminPage from './pages/AdminPage'
 import RegisterPage from './pages/RegisterPage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -26,23 +26,16 @@ export default function App() {
     sessionStorage.removeItem('user')
     navigate('/login')
   }
-
   return (
     <>
-      {user && <Navbar user={user} onLogout={handleLogout} />}
+       {user && <Navbar user={user} onLogout={handleLogout} />}
       <Routes>
-<<<<<<< HEAD
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
         <Route path="/profile" element={user ? <ProfilePage user={user} /> : <LoginPage onLogin={handleLogin} />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/admin-portal" element={<AdminPage />} />
+        <Route path="/admin-portal" element={user?.role === 'admin' ? <AdminPage /> : <Navigate to="/" />} />
         <Route path="/register" element={<RegisterPage onLogin={handleLogin} />} />
-=======
-        <Route path="/" element={<HomePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/admin-portal" element={<AdminPage />} />
->>>>>>> 69b87f18 (Merge islemi manuel olarak tamamlandi)
       </Routes>
     </>
   )
