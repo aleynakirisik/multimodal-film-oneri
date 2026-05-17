@@ -10,7 +10,7 @@ export default function AdminPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            // Backend'in 8000 portunda olduğundan emin oluyoruz
+            //Backend 8000 portunda
             const response = await fetch("http://localhost:8000/api/add-movie", { 
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -41,7 +41,7 @@ export default function AdminPage() {
 
   return (
     <div style={s.container}>
-      <h1 style={{ marginBottom: 24 }}> Admin Panel</h1>
+      <h1 style={{ marginBottom: 24 }}> Film Ekle </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>Eklemek istediğiniz filmin adını ve vizyon tarihini doldurunuz.</p>
       
       <form onSubmit={handleSubmit}>

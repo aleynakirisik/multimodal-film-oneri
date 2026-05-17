@@ -2,8 +2,8 @@ import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const tabs = [
-  { label: '🎬 Filmler', path: '/' },
-  { label: '👤 Profilim', path: '/profile' },
+  { label: 'Filmler', path: '/' },
+  { label: 'Profilim', path: '/profile' },
 ]
 
 export default function Navbar({ user, onLogout }) {
@@ -54,7 +54,7 @@ return (
               marginLeft: 8, transition: 'all 0.15s'
             }}
           >
-            ⚙️ Admin Paneli
+            Admin Paneli
           </button>
         )}
       </div>

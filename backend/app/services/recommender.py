@@ -17,7 +17,6 @@ def _get_db_conn():
 def _fetch_movies_from_supabase() -> pd.DataFrame:
     conn = _get_db_conn()
     try:
-        # Puan ve yıl sütunlarını da çekiyoruz
         df = pd.read_sql(
             "SELECT id AS movie_id, title, overview, poster_path, genres, release_year, avg_rating, vote_count FROM movies;",
             conn
@@ -59,7 +58,6 @@ def _get_pinecone_index():
 def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = None):
     index = _get_pinecone_index()
     
-    # sadece filmleri getir
     filter_dict = {"type": {"$ne": "user_profile"}}
     
     result = index.query(
@@ -98,10 +96,58 @@ def _build_result(match: dict, meta_df: pd.DataFrame) -> Optional[dict]:
 class RecommendationEngine:
     def __init__(self):
         self.is_ready = False
-        self.meta_df  = pd.DataFrame() 
-        # Modeli bir kez yükle
+        self.meta_df  = pd.DataFrame()
+
+        # ── SBERT modelini yükle ──────────────────────────────
         from sentence_transformers import SentenceTransformer
         self.sbert = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+
+        # ── VGG16 modelini yükle (son FC katmanı çıkarılır → 4096 boyut) ──
+        import torch
+        from torchvision import models
+        print("⏳ VGG16 yükleniyor...")
+        vgg = models.vgg16(pretrained=True)
+        # Classifier'ın son katmanını (1000 sınıf) kaldır, 4096 boyutlu çıktı al
+        vgg.classifier = torch.nn.Sequential(*list(vgg.classifier.children())[:-1])
+        vgg.eval()
+        self.vgg = vgg
+        self.torch = torch
+        print("✅ VGG16 hazır")
+
+        # ── Görsel ön işleme pipeline'ı ──────────────────────
+        from torchvision import transforms
+        self.preprocess = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        ])
+
+    def _extract_visual_features(self, poster_path: str) -> np.ndarray:
+        """
+        TMDB poster_path'ten görseli indir, VGG16 ile 4096 boyutlu vektör çıkar.
+        Poster indirilemezse sıfır vektör döner.
+        """
+        import io
+        from PIL import Image
+        from app.services.tmdb_service import fetch_poster_image
+
+        poster_bytes = fetch_poster_image(poster_path)
+        if not poster_bytes:
+            print("⚠️  Poster indirilemedi, sıfır vektör kullanılıyor.")
+            return np.zeros(4096, dtype=np.float32)
+
+        try:
+            img = Image.open(io.BytesIO(poster_bytes)).convert('RGB')
+            tensor = self.preprocess(img).unsqueeze(0)  # (1, 3, 224, 224)
+            with self.torch.no_grad():
+                features = self.vgg(tensor)             # (1, 4096)
+            return features.squeeze().numpy().astype(np.float32)
+        except Exception as e:
+            print(f"⚠️  VGG16 özellik çıkarma hatası: {e} — sıfır vektör kullanılıyor.")
+            return np.zeros(4096, dtype=np.float32)
 
     def load(self):
         """Metadata yükler ve Pinecone kontrol eder."""
@@ -109,8 +155,7 @@ class RecommendationEngine:
         self.meta_df = _fetch_movies_from_supabase()
         print(f"✅ {len(self.meta_df)} film yüklendi (Supabase)")
         self.is_ready = True
-        print(" MOTOR HAZIR")
-
+        print("✅ MOTOR HAZIR")
 
     def recommend_by_movie(self, movie_id: int, top_n: int = 10) -> List[dict]:
         index = _get_pinecone_index()
@@ -139,16 +184,11 @@ class RecommendationEngine:
         matches = _pinecone_query(profile, top_k=top_n, exclude_ids=[str(mid) for mid in liked_movie_ids])
         return [r for m in matches if (r := _build_result(m, self.meta_df))]
 
-
     def update_user_profile(self, user_id: str) -> None:
         """
         Kullanıcının Supabase'deki tüm puanlarını çeker,
         puan ağırlıklı ortalama profil vektörü oluşturur ve
         Pinecone'a 'user:{user_id}' anahtarıyla yazar.
-
-        Kayıtta filmler puansız (rating=None) eklenebilir;
-        bu durumda o filmler vektör ortalamasına eşit ağırlıkla (0.6) katılır
-        ama avg_rating güncellenmez — kullanıcı arayüzde yıldız görmez.
         """
         conn = _get_db_conn()
         try:
@@ -166,7 +206,6 @@ class RecommendationEngine:
 
         index = _get_pinecone_index()
         movie_ids = [str(r[0]) for r in rows]
-        # rating=None olan filmler için nötr ağırlık (0.6)
         raw_ratings = [r[1] for r in rows]
 
         fetch_result = index.fetch(ids=movie_ids)
@@ -180,7 +219,7 @@ class RecommendationEngine:
                 if rating is not None:
                     weights.append(max(0.2, float(rating) / 5.0))
                 else:
-                    weights.append(0.6)  
+                    weights.append(0.6)
 
         if not vectors:
             return
@@ -199,8 +238,6 @@ class RecommendationEngine:
     def recommend_for_user_id(self, user_id: str, top_n: int = 10) -> Optional[List[dict]]:
         """
         Pinecone'daki kullanıcı profil vektörüyle en yakın filmleri döndürür.
-        İzlenen / seçilen filmler sonuçtan çıkarılır.
-        Profil yoksa None döner (henüz hiç seçim yapılmamış).
         """
         index = _get_pinecone_index()
 
@@ -212,7 +249,6 @@ class RecommendationEngine:
 
         profile = np.array(vectors[f"user:{user_id}"]["values"], dtype=np.float32)
 
-        # daha önce seçilen/izlenen filmleri hariç tut
         conn = _get_db_conn()
         try:
             cur = conn.cursor()
@@ -226,7 +262,6 @@ class RecommendationEngine:
 
         matches = _pinecone_query(profile, top_k=top_n, exclude_ids=watched)
         return [r for m in matches if (r := _build_result(m, self.meta_df))]
-
 
     def get_movie_by_id(self, movie_id: int) -> Optional[dict]:
         row = _fetch_movie_by_id_supabase(movie_id)
@@ -260,68 +295,64 @@ class RecommendationEngine:
         import requests
         from app.core.config import TMDB_API_KEY
 
-        """Admin panelinden yeni film ekleme hattı."""
+        """Admin panelinden yeni film ekleme hattı. TMDB → VGG16 + SBERT → Pinecone → Supabase"""
         print(f"🚀 {title} ({year}) işleniyor...")
-        print(f"1. TMDB Araması Başladı...")
-        # 1. TMDB Arama 
+
+        # 1. TMDB Arama
         print(f"1. TMDB Araması Başladı... (Aranan: {title}, Yıl: {year})")
-        
         try:
-            # TMDB Araması
             search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title}&year={year}"
-            search_response = requests.get(search_url, timeout=10) # Zaman aşımı ekledik
+            search_response = requests.get(search_url, timeout=10)
             search_res = search_response.json()
-            
+
             if not search_res.get('results'):
                 print("❌ Hata: Film TMDB'de bulunamadı!")
                 raise Exception("Film TMDB'de bulunamadı!")
-            
+
             movie_id = search_res['results'][0]['id']
-            print(f"2. TMDB Verisi Alındı: ID {movie_id}") # Burayı görmemiz lazım!
-            
-            # Detayları Çek
+            print(f"2. TMDB Verisi Alındı: ID {movie_id}")
+
             detail_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
             res = requests.get(detail_url, timeout=10).json()
-            
+
         except Exception as e:
             print(f"❌ TMDB İsteği Sırasında Hata: {str(e)}")
             raise e
-        
-        # 2. Metin Vektörü ve Normalizasyon
+
+        # 2. Görsel Vektör — VGG16 ile poster'dan çıkar
+        print("3a. VGG16 ile görsel vektör çıkarılıyor...")
+        visual_part = self._extract_visual_features(res.get('poster_path', ''))
+        print(f"✅ Görsel vektör hazır, boyut: {visual_part.shape}")
+
+        # 3. Metin Vektörü — SBERT ile çıkar
+        print("3b. SBERT ile metin vektörü çıkarılıyor...")
         genres_str = ", ".join([g['name'] for g in res.get('genres', [])])
         text_content = f"{res['title']}. Genres: {genres_str}. Overview: {res['overview']}"
-        
-        # SBERT zaten normalize edebiliyor, bunu kullanalım
         text_vec = self.sbert.encode([text_content], normalize_embeddings=True)[0]
-        
-        # 3. Hibrit Vektör Oluşturma ve L2 Normalizasyon
-        # Pinecone 4480 beklediği için yapıyı koruyoruz
-        visual_part = np.zeros(4096, dtype=np.float32)
         text_part = (text_vec * 0.8).astype(np.float32)
-        
+        print(f"✅ Metin vektörü hazır, boyut: {text_part.shape}")
+
+        # 4. Hibrit Vektör: visual (4096) + text (384) = 4480 boyut
         combined_vec = np.concatenate([visual_part, text_part])
-        
-        # KRİTİK ADIM: Vektörü normalize ediyoruz (L2 Norm)
         norm = np.linalg.norm(combined_vec)
         if norm > 0:
             combined_vec = combined_vec / norm
-        
         final_vec = combined_vec.astype(np.float32).tolist()
         print("3. Vektörleme Tamamlandı, Pinecone'a gönderiliyor...")
 
-        # 4. Pinecone'a Gönder (Hata almamak için liste formatında)
+        # 5. Pinecone'a Gönder
         index = _get_pinecone_index()
         index.upsert(vectors=[{
             "id": str(movie_id),
             "values": final_vec,
             "metadata": {
-                "title": str(res['title']), 
-                "genre": str(genres_str)[:100] # Uzunluğu kısıtla
+                "title": str(res['title']),
+                "genre": str(genres_str)[:100]
             }
         }])
         print("4. Pinecone Başarılı, Supabase'e yazılıyor...")
-        
-        # 4. Supabase Kayıt (Aynı kalıyor)
+
+        # 6. Supabase Kayıt
         conn = _get_db_conn()
         cur = conn.cursor()
         cur.execute("""
@@ -330,15 +361,15 @@ class RecommendationEngine:
             ON CONFLICT (id) DO UPDATE SET 
                 avg_rating=EXCLUDED.avg_rating, vote_count=EXCLUDED.vote_count,
                 poster_path=EXCLUDED.poster_path, genres=EXCLUDED.genres
-        """, (movie_id, res['title'], res['overview'], res['poster_path'], 
+        """, (movie_id, res['title'], res['overview'], res['poster_path'],
               genres_str, year, res['vote_average'], res['vote_count']))
         conn.commit()
         conn.close()
         print("5. Her şey tamam!")
 
-        # Hafızayı tazele ve basit cevap dön
         self.load()
         return {"status": "success", "title": res.get('title')}
+
 
 _engine_instance = None
 
