@@ -41,7 +41,7 @@ return (
           </button>
         ))}
 
-        {/* SADECE ADMİN KULLANICISI İÇİN GÖRÜNEN BUTON */}
+        {/* sadece admin gorebilir */}
         {user?.username === 'admin' && (
           <button
             onClick={() => navigate('/admin-portal')}

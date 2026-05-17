@@ -9,9 +9,6 @@ import hashlib, uuid
 
 router = APIRouter()
 
-
-# ─── Request / Response Modelleri ────────────────────────────
-
 class MovieResponse(BaseModel):
     movie_id: int
     title: str
@@ -47,7 +44,6 @@ class RegisterRequest(BaseModel):
     username: str
     email: str
     password: str
-    # Kayıt sırasında seçilen 3 film — rating YOK, sadece tercih sinyali
     initial_movie_ids: List[int]
 
 
@@ -60,9 +56,6 @@ class RatingRequest(BaseModel):
     user_id: str
     movie_id: int
     rating: float
-
-
-# ─── Yardımcı Fonksiyonlar ────────────────────────────────────
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -101,7 +94,6 @@ def ensure_tables():
         conn.close()
 
 
-# Uygulama başlarken tabloları oluştur
 try:
     ensure_tables()
 except Exception as e:
@@ -116,12 +108,12 @@ def check_availability(req: dict):
     conn = _get_db_conn()
     cur = conn.cursor()
     try:
-        # Kullanıcı adı kontrolü
+        #kullanıcı adı kontrolü
         cur.execute("SELECT id FROM users WHERE username = %s", (username,))
         if cur.fetchone():
             raise HTTPException(409, "Bu kullanıcı adı zaten alınmış.")
             
-        # Email kontrolü
+        #email kontrolü
         cur.execute("SELECT id FROM users WHERE email = %s", (email,))
         if cur.fetchone():
             raise HTTPException(409, "Bu e-posta adresi zaten kullanımda.")
@@ -130,8 +122,6 @@ def check_availability(req: dict):
     finally:
         cur.close()
         conn.close()
-        
-# ─── Auth Endpoint'leri ───────────────────────────────────────
 
 @router.post("/auth/register")
 def register(req: RegisterRequest):
@@ -159,7 +149,7 @@ def register(req: RegisterRequest):
             (user_id, req.username, req.email, hash_password(req.password))
         )
 
-        # 3 filmi rating=NULL ile kaydet (cold start)
+        # 3 filmi rating=NULL ile kaydet
         for movie_id in req.initial_movie_ids:
             cur.execute("""
                 INSERT INTO ratings (user_id, movie_id, rating)
@@ -178,7 +168,7 @@ def register(req: RegisterRequest):
         cur.close()
         conn.close()
 
-    # Pinecone'a profil vektörü yaz
+    #pinecona profil vektörü yaz
     engine = get_engine()
     engine.update_user_profile(user_id)
 
@@ -198,7 +188,7 @@ def login(req: LoginRequest):
         row = cur.fetchone()
         if not row:
             raise HTTPException(401, "Hatalı giriş.")
-        return {"user_id": row[0], "username": row[1], "role": row[2]} # Rolü ekledik
+        return {"user_id": row[0], "username": row[1], "role": row[2]} 
     finally:
         cur.close()
         conn.close()
@@ -225,7 +215,7 @@ def add_rating(req: RatingRequest):
             ON CONFLICT (user_id, movie_id) DO UPDATE SET rating = EXCLUDED.rating
         """, (req.user_id, req.movie_id, req.rating))
 
-        # avg_rating ve vote_count'u sadece gerçek puanlardan (rating IS NOT NULL) hesapla
+        # avg_rating ve vote_count'u sadece gerçek puanlardan hesapla
         cur.execute("""
             UPDATE movies SET
                 avg_rating = (
@@ -422,8 +412,7 @@ async def add_new_movie(request: AddMovieRequest):
     """
     engine = get_engine()
     try:
-        # Recommender içindeki yeni fonksiyonu çağırıyoruz
-        # Bu satır TMDB -> VGG16 -> BERT -> Supabase/Pinecone akışını başlatır
+        #bu satır TMDB -> VGG16 -> BERT -> Supabase/Pinecone akışını başlatır
         movie_details = engine.process_new_movie_logic(request.title, request.year)
         
         return {

@@ -19,7 +19,7 @@ export default function RegisterPage({ onLogin }) {
 
   useEffect(() => {
     if (step === 2) {
-      // Film listesini çekiyoruz
+      //film listesini çekiyoruz
       getMovies(searchTerm, '', 100)
         .then(data => setMovies(Array.isArray(data) ? data : []))
         .catch(console.error)
@@ -34,7 +34,7 @@ export default function RegisterPage({ onLogin }) {
     try {
         setError('');
         await checkAvailability(username, email);
-        setStep(2); // Her şey okeyse film seçimine geç
+        setStep(2); //her şey okeyse film seçimine geç
     } catch (err) {
         setError(err.response?.data?.detail || 'Bu bilgiler zaten kullanımda.');
     }
@@ -44,11 +44,11 @@ export default function RegisterPage({ onLogin }) {
     if (selectedIds.length < 3) { setError('Lütfen en az 3 film seçin.'); return }
     setLoading(true)
     try {
-      // Backend'e kayıt isteği gönderilir
+      //backende kayıt isteği gönder
       const user = await register(username, email, password, selectedIds)
       sessionStorage.setItem('user', JSON.stringify(user))
-      onLogin(user) // Uygulama durumunu günceller
-      navigate('/') // Ana sayfaya yönlendirir
+      onLogin(user) 
+      navigate('/') 
     } catch (e) {
       setError(e.response?.data?.detail || 'Kayıt başarısız oldu. Kullanıcı adı veya email alınmış olabilir.')
     } finally { setLoading(false) }
@@ -65,7 +65,7 @@ export default function RegisterPage({ onLogin }) {
     subtitle: { fontSize: 14, color: '#9494a3', marginBottom: 25, textAlign: 'center' },
     input: { width: '100%', padding: '12px 16px', marginBottom: 15, background: '#25252b', border: '1px solid #33333b', borderRadius: 10, color: '#fff', outline: 'none' },
     btn: { width: '100%', padding: '12px', background: '#7c4dff', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 600, cursor: 'pointer' },
-    // Poster Grid Yapısı
+    //poster grid yapısı
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 15, maxHeight: 400, overflowY: 'auto', padding: 10, background: '#25252b', borderRadius: 12, marginBottom: 20 },
     movieItem: (isSelected) => ({
       cursor: 'pointer', textAlign: 'center', transition: '0.2s', position: 'relative',

@@ -17,7 +17,6 @@ def _get_db_conn():
 def _fetch_movies_from_supabase() -> pd.DataFrame:
     conn = _get_db_conn()
     try:
-        # Puan ve yıl sütunlarını da çekiyoruz
         df = pd.read_sql(
             "SELECT id AS movie_id, title, overview, poster_path, genres, release_year, avg_rating, vote_count FROM movies;",
             conn
@@ -58,8 +57,7 @@ def _get_pinecone_index():
 
 def _pinecone_query(vector: np.ndarray, top_k: int, exclude_ids: List[str] = None):
     index = _get_pinecone_index()
-    
-    # sadece filmleri getir
+
     filter_dict = {"type": {"$ne": "user_profile"}}
     
     result = index.query(
@@ -99,7 +97,7 @@ class RecommendationEngine:
     def __init__(self):
         self.is_ready = False
         self.meta_df  = pd.DataFrame() 
-        # Modeli bir kez yükle
+        #modeli bir kez yükle
         from sentence_transformers import SentenceTransformer
         self.sbert = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
 
@@ -261,47 +259,45 @@ class RecommendationEngine:
         from app.core.config import TMDB_API_KEY
 
         """Admin panelinden yeni film ekleme hattı."""
-        print(f"🚀 {title} ({year}) işleniyor...")
-        print(f"1. TMDB Araması Başladı...")
-        # 1. TMDB Arama 
-        print(f"1. TMDB Araması Başladı... (Aranan: {title}, Yıl: {year})")
+        print(f"{title} ({year}) işleniyor...")
+        print(f"1. TMDB Araması Başladı.")
+        print(f"1. TMDB Araması Başladı. (Aranan: {title}, Yıl: {year})")
         
         try:
-            # TMDB Araması
+            #TMDB araması
             search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title}&year={year}"
-            search_response = requests.get(search_url, timeout=10) # Zaman aşımı ekledik
+            search_response = requests.get(search_url, timeout=10) 
             search_res = search_response.json()
             
             if not search_res.get('results'):
-                print("❌ Hata: Film TMDB'de bulunamadı!")
-                raise Exception("Film TMDB'de bulunamadı!")
+                print(" Hata: Film TMDB'de bulunamadı")
+                raise Exception("Film TMDB'de bulunamadı")
             
             movie_id = search_res['results'][0]['id']
-            print(f"2. TMDB Verisi Alındı: ID {movie_id}") # Burayı görmemiz lazım!
+            print(f"2. TMDB Verisi Alındı: ID {movie_id}") 
             
-            # Detayları Çek
+            #detayları Çek
             detail_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
             res = requests.get(detail_url, timeout=10).json()
             
         except Exception as e:
-            print(f"❌ TMDB İsteği Sırasında Hata: {str(e)}")
+            print(f"TMDB İsteği Sırasında Hata: {str(e)}")
             raise e
         
-        # 2. Metin Vektörü ve Normalizasyon
+        #metin vektörü ve normalizasyon
         genres_str = ", ".join([g['name'] for g in res.get('genres', [])])
         text_content = f"{res['title']}. Genres: {genres_str}. Overview: {res['overview']}"
         
-        # SBERT zaten normalize edebiliyor, bunu kullanalım
+        # SBERT 
         text_vec = self.sbert.encode([text_content], normalize_embeddings=True)[0]
         
-        # 3. Hibrit Vektör Oluşturma ve L2 Normalizasyon
-        # Pinecone 4480 beklediği için yapıyı koruyoruz
+        #hibrit vektör oluşturma ve L2 normalizasyon
         visual_part = np.zeros(4096, dtype=np.float32)
         text_part = (text_vec * 0.8).astype(np.float32)
         
         combined_vec = np.concatenate([visual_part, text_part])
         
-        # KRİTİK ADIM: Vektörü normalize ediyoruz (L2 Norm)
+        #L2 Norm
         norm = np.linalg.norm(combined_vec)
         if norm > 0:
             combined_vec = combined_vec / norm
@@ -309,19 +305,19 @@ class RecommendationEngine:
         final_vec = combined_vec.astype(np.float32).tolist()
         print("3. Vektörleme Tamamlandı, Pinecone'a gönderiliyor...")
 
-        # 4. Pinecone'a Gönder (Hata almamak için liste formatında)
+        #Pineconea gönder 
         index = _get_pinecone_index()
         index.upsert(vectors=[{
             "id": str(movie_id),
             "values": final_vec,
             "metadata": {
                 "title": str(res['title']), 
-                "genre": str(genres_str)[:100] # Uzunluğu kısıtla
+                "genre": str(genres_str)[:100]
             }
         }])
         print("4. Pinecone Başarılı, Supabase'e yazılıyor...")
         
-        # 4. Supabase Kayıt (Aynı kalıyor)
+        #Supabase kayıt
         conn = _get_db_conn()
         cur = conn.cursor()
         cur.execute("""
@@ -336,7 +332,7 @@ class RecommendationEngine:
         conn.close()
         print("5. Her şey tamam!")
 
-        # Hafızayı tazele ve basit cevap dön
+        #basit cevap dön
         self.load()
         return {"status": "success", "title": res.get('title')}
 

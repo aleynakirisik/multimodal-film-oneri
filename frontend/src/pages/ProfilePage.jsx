@@ -11,35 +11,36 @@ export default function ProfilePage({ user }) {
   const [saving, setSaving] = useState(false)
   const [moviesLoading, setMoviesLoading] = useState(true)
 
+  //film listesi sadece bir kez çekilir 
   useEffect(() => {
-    // tüm filmleri çek 
     getMovies('', '', 500)
       .then(data => {
         setAllMovies(Array.isArray(data) ? data : [])
         setMoviesLoading(false)
       })
       .catch(() => setMoviesLoading(false))
+  }, []) 
 
-    if (user) {
-      // kullanıcının daha önce puanladığı filmler
-      getUserRatings(user.user_id)
-        .then(ratings => {
-          const watchedList = ratings.map(r => ({
-            movie: {
-              movie_id: r.movie_id,
-              title: r.title,
-              poster_url: r.poster_url,
-              genres: r.genres
-            },
-            rating: r.rating
-          }))
-          setWatched(watchedList)
-        })
-        .catch(() => {})
-    }
-  }, [user])
+  //kullanıcı puanları user değişirse yeniden çekilir
+  useEffect(() => {
+    if (!user) return
+    getUserRatings(user.user_id)
+      .then(ratings => {
+        const watchedList = ratings.map(r => ({
+          movie: {
+            movie_id: r.movie_id,
+            title: r.title,
+            poster_url: r.poster_url,
+            genres: r.genres
+          },
+          rating: r.rating
+        }))
+        setWatched(watchedList)
+      })
+      .catch(() => {})
+  }, [user?.user_id]) //sadece user id değişince tekrar çek
 
-  // arama filtresi 
+  //arama filtresi 
   const filtered = search.length >= 1
     ? allMovies
         .filter(m => m.title.toLowerCase().includes(search.toLowerCase()))
@@ -154,6 +155,12 @@ export default function ProfilePage({ user }) {
             </div>
           )}
         </div>
+        {/* toplam film sayısı */}
+        {!moviesLoading && allMovies.length > 0 && (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+            {allMovies.length} film aranabilir
+          </p>
+        )}
       </div>
 
       {/* izleme Listesi */}

@@ -4,8 +4,8 @@ import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
 import AdminPage from './pages/AdminPage'
+import RegisterPage from './pages/RegisterPage'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -26,9 +26,10 @@ export default function App() {
     sessionStorage.removeItem('user')
     navigate('/login')
   }
+
   return (
     <>
-       {user && <Navbar user={user} onLogout={handleLogout} />}
+      {user && <Navbar user={user} onLogout={handleLogout} />}
       <Routes>
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
         <Route path="/profile" element={user ? <ProfilePage user={user} /> : <LoginPage onLogin={handleLogin} />} />
